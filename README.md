@@ -5,7 +5,7 @@ I think this could be useful for those like me who want to simplify their daily 
 It works both at home 🏠 and at work 🏭 😉!
 
 
-For questions, discord @sibelius13.
+For questions, discord [@sibelius13](https://discordapp.com/users/sibelius13).
 
 
 ## Context
