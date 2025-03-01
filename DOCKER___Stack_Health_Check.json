@@ -1,0 +1,842 @@
+{
+  "name": "DOCKER : Stack Health Check",
+  "nodes": [
+    {
+      "parameters": {
+        "sendTo": "sebastien.landeau@virtual-expo.com",
+        "subject": "Docker Backup",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Notification de Backup</title>\n</head>\n<body style=\"font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; text-align: center;\">\n    <div style=\"max-width: 600px; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); margin: 0 auto; text-align: left;\">\n        <div style=\"background: #28a745; color: white; padding: 10px; text-align: center; font-size: 20px; border-radius: 8px 8px 0 0;\">\n            ✅ Stack Docker en bonne santé !\n        </div>\n        <p style=\"margin-top: 20px; font-size: 16px; color: #333;\">Bonjour,</p>\n        <p style=\"font-size: 16px; color: #333;\">Nous vous informons que le check de votre stack Docker s'est bien déroulée.</p>\n        <p style=\"font-size: 16px; color: #333;\"><strong>Date et heure :</strong> {{ $('CALL').item.json.body.stamp }}</p>\n        <p style=\"font-size: 16px; color: #333;\"><strong>Emplacement de sauvegarde :</strong>~/Backups</p>\n        <p style=\"font-size: 16px; color: #333;\">Merci de votre confiance.</p>\n        <p style=\"margin-top: 20px; font-size: 14px; color: #666; text-align: center;\">&copy; 2025 Virtual-Expo | Notification automatique</p>\n    </div>\n</body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1940,
+        -40
+      ],
+      "id": "87da0935-77dc-4f07-a463-0b79f1734a3f",
+      "name": "SEND BACKUP FINISHED MAIL",
+      "webhookId": "1f7e2bce-1f8f-4eb2-aace-b57d59654c23",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "tAWy0IxRBdHmEJK5",
+          "name": "GMail VE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Notification fin de process envoyée !",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        -40
+      ],
+      "id": "b9766593-4aa1-4ac2-9f91-b0f62ac0369b",
+      "name": "DONE"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1580,
+        -40
+      ],
+      "id": "90f9e8ae-aa95-469e-a768-eb2814854233",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "backupLastExec",
+        "value": "={{ $json.body.stamp }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -40
+      ],
+      "id": "f9fb74ab-97ce-4371-bc3e-1d7593ba006e",
+      "name": "put",
+      "credentials": {
+        "redis": {
+          "id": "nsyx0NO1HtHrmZlo",
+          "name": "N8N REDIS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "redisCheck",
+        "key": "backupLastExec",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        60,
+        -40
+      ],
+      "id": "daeacbc7-5bc7-430f-858e-4a91c0c6d39c",
+      "name": "get",
+      "credentials": {
+        "redis": {
+          "id": "nsyx0NO1HtHrmZlo",
+          "name": "N8N REDIS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_health",
+          "mode": "list",
+          "cachedResultName": "n8n_health"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "checkdate": "={{ $('CALL').item.json.body.stamp }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "checkdate",
+              "displayName": "checkdate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -60,
+        140
+      ],
+      "id": "963f2958-3f0f-477e-9a4c-9e4fe6731c40",
+      "name": "PG Insert",
+      "credentials": {
+        "postgres": {
+          "id": "AkCWr1Azh0070MFm",
+          "name": "N8N POSTGRES"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_health",
+          "mode": "list",
+          "cachedResultName": "n8n_health"
+        },
+        "limit": 1,
+        "sort": {
+          "values": [
+            {
+              "column": "id",
+              "direction": "DESC"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        160,
+        140
+      ],
+      "id": "b76e74b7-f738-4725-adad-ca538740e870",
+      "name": "PGSelect",
+      "credentials": {
+        "postgres": {
+          "id": "AkCWr1Azh0070MFm",
+          "name": "N8N POSTGRES"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "value": "n8n_health",
+          "mode": "list",
+          "cachedResultName": "n8n_health"
+        },
+        "dataMode": "defineBelow",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "checkDate",
+              "value": "={{ $('CALL').item.json.body.stamp }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -60,
+        340
+      ],
+      "id": "0ff6ce0d-fca8-4011-839a-029a6a99b978",
+      "name": "MSInsert",
+      "credentials": {
+        "mySql": {
+          "id": "6CbXWpUvot74TxEj",
+          "name": "LOCAL MySQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": {
+          "__rl": true,
+          "value": "n8n_health",
+          "mode": "list",
+          "cachedResultName": "n8n_health"
+        },
+        "limit": 1,
+        "sort": {
+          "values": [
+            {
+              "column": "id",
+              "direction": "DESC"
+            }
+          ]
+        },
+        "options": {
+          "outputColumns": [
+            "checkDate"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        160,
+        340
+      ],
+      "id": "cad63969-f17a-40eb-9baa-7af4f14c25b6",
+      "name": "MSSelect",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "6CbXWpUvot74TxEj",
+          "name": "LOCAL MySQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS public.n8n_health (\n    id SERIAL PRIMARY KEY,\n    checkDate TIMESTAMP\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -240,
+        140
+      ],
+      "id": "c377933d-89bd-427b-926f-c9d736637f87",
+      "name": "PG Create",
+      "credentials": {
+        "postgres": {
+          "id": "AkCWr1Azh0070MFm",
+          "name": "N8N POSTGRES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS `n8n_health` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `checkDate` datetime NOT NULL,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        340
+      ],
+      "id": "54adfcfc-6b69-474a-8488-95792831286c",
+      "name": "MS Create",
+      "credentials": {
+        "mySql": {
+          "id": "6CbXWpUvot74TxEj",
+          "name": "LOCAL MySQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5e2e1a13-665d-4ea1-bb79-9bea239f2343",
+              "leftValue": "={{ $json.redisCheck }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        380,
+        -40
+      ],
+      "id": "8731d1bd-5eb5-4cdb-becf-aced9b4246e4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "da46f85f-cae2-44b5-8fe3-bffc19faef35",
+              "leftValue": "={{ $json.checkdate }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        380,
+        140
+      ],
+      "id": "a5c331a2-125f-46a9-afcb-a7d6572f0b90",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "43634dcd-467f-462b-9aec-61d210231130",
+              "leftValue": "={{ $json.checkDate }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        380,
+        340
+      ],
+      "id": "3a64db27-1c2d-47f5-82ab-18edc8778892",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "issues",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        460
+      ],
+      "id": "2793c34d-edcc-4f46-9d1e-2810f3b429f6",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "sendTo": "sebastien.landeau@virtual-expo.com",
+        "subject": "Docker Backup",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Notification de Backup</title>\n</head>\n<body style=\"font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; text-align: center;\">\n    <div style=\"max-width: 600px; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); margin: 0 auto; text-align: left;\">\n        <div style=\"background: #ed6565; color: white; padding: 10px; text-align: center; font-size: 20px; border-radius: 8px 8px 0 0;\">\n            ❌ Check Stack Docker Echouée\n        </div>\n        <p style=\"margin-top: 20px; font-size: 16px; color: #333;\">Bonjour,</p>\n        <p style=\"font-size: 16px; color: #333;\">Nous vous informons que suite à la sauvegarde de votre conteneur Docker, des services n'omt pas redémarrés : {{ $json.message }}</p>\n        <p style=\"font-size: 16px; color: #333;\"><strong>Date et heure : {{ $('CALL').item.json.body.stamp }}</strong></p>\n        <p style=\"font-size: 16px; color: #333;\"><strong>Emplacement de sauvegarde :</strong>~/Backups</p>\n        <p style=\"font-size: 16px; color: #333;\">Merci de votre confiance.</p>\n        <p style=\"margin-top: 20px; font-size: 14px; color: #666; text-align: center;\">&copy; 2025 Virtual-Expo | Notification automatique</p>\n    </div>\n</body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1480,
+        460
+      ],
+      "id": "c2d84be1-9280-4e9a-92d6-8de27adc65d0",
+      "name": "SEND BACKUP ERRORS",
+      "webhookId": "1f7e2bce-1f8f-4eb2-aace-b57d59654c23",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "tAWy0IxRBdHmEJK5",
+          "name": "GMail VE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=Errors with : {{ $('Concatenate Errors').item.json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        460
+      ],
+      "id": "5579a01c-bd13-4da8-9524-82e6c787d6e7",
+      "name": "ERROR"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nlet errors = [];\nfor (const item of $input.all()) {\n  for(const line of item.json.issues){\n      errors.push(line.error)\n  }\n}\n\nreturn {\n  message: errors.join(\", \")\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        460
+      ],
+      "id": "1d94b5b1-7aae-4f77-8e96-4d4f7a20fc2c",
+      "name": "Concatenate Errors"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cd43db1c-35d4-4091-aca0-35ef237339b0",
+              "name": "error",
+              "value": "REDIS",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        300
+      ],
+      "id": "c4a50365-18f3-40bc-9e5e-f1d452d424c7",
+      "name": "Err Redis"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "81e70457-0d65-44e9-bac3-d673176ab19f",
+              "name": "error",
+              "value": "POSTGRES",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        460
+      ],
+      "id": "55a6da9d-1687-4ebd-98cf-591648c6fbd3",
+      "name": "Err PG"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e3813691-4729-4421-bd5e-45096c0a1fe2",
+              "name": "error",
+              "value": "MYSQL",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        620
+      ],
+      "id": "f65b7771-1c74-43aa-803c-532bfce30e21",
+      "name": "Err MySQL"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ff4fa298-3c06-4540-b426-9bedac2426ca",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        -40
+      ],
+      "id": "ff3fe689-b29b-4923-94d6-f4549eba37a5",
+      "name": "CALL",
+      "webhookId": "ff4fa298-3c06-4540-b426-9bedac2426ca"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "SEND BACKUP FINISHED MAIL": {
+      "main": [
+        [
+          {
+            "node": "DONE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "SEND BACKUP FINISHED MAIL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "put": {
+      "main": [
+        [
+          {
+            "node": "get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Insert": {
+      "main": [
+        [
+          {
+            "node": "PGSelect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PGSelect": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSInsert": {
+      "main": [
+        [
+          {
+            "node": "MSSelect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSSelect": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Create": {
+      "main": [
+        [
+          {
+            "node": "PG Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MS Create": {
+      "main": [
+        [
+          {
+            "node": "MSInsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Err Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Err PG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ],
+        [
+          {
+            "node": "Err MySQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Concatenate Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEND BACKUP ERRORS": {
+      "main": [
+        [
+          {
+            "node": "ERROR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concatenate Errors": {
+      "main": [
+        [
+          {
+            "node": "SEND BACKUP ERRORS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Err Redis": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Err PG": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Err MySQL": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CALL": {
+      "main": [
+        [
+          {
+            "node": "put",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PG Create",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MS Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a14ee807-d45d-4f78-9a24-fee00e4183bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "589a1016f393b0663dd67ad51243daf1d9d640000b68b69ae63569f6afc6f891"
+  },
+  "id": "mepf8HHQZ8llhfVw",
+  "tags": []
+}
