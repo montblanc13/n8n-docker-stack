@@ -1,5 +1,13 @@
 # N8N Docker Stack
 
+I am sharing here a personal project to enable automation. 
+I think this could be useful for those like me who want to simplify their daily routine by creating automatic flows 🚀 to offload low-value tasks! 
+It works both at home 🏠 and at work 🏭 😉!
+
+
+For questions, discord @sibelius13.
+
+
 ## Context
 
 A basic docker stack to build a N8N Server Node to automate many task on your computer.
