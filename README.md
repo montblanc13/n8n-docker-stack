@@ -193,6 +193,85 @@ After adjusting your compose, you can start your stack
 docker compose up -d
 ```
 
+## Deployment with Podman on Fedora Workstation
+
+This section outlines how to deploy the N8N stack using Podman on a Fedora Workstation environment. Podman provides a daemonless container engine compatible with Docker commands.
+
+### Prerequisites
+
+1.  **Install Podman:** Fedora Workstation usually comes with Podman pre-installed. If not, install it using:
+    ```bash
+    sudo dnf install podman
+    ```
+2.  **Install podman-compose:** This tool allows you to use `compose.yaml` files with Podman.
+    ```bash
+    sudo dnf install podman-compose
+    ```
+3.  **Firewall Configuration (if applicable):** Ensure that ports 80 (for HTTP) and 443 (for HTTPS) are open in your firewall (e.g., `firewalld`) to allow external access to Traefik:
+    ```bash
+    sudo firewall-cmd --add-service=http --permanent
+    sudo firewall-cmd --add-service=https --permanent
+    sudo firewall-cmd --reload
+    ```
+
+### Setup Steps
+
+1.  **Clone the Repository:**
+    ```bash
+    # git clone <repository_url>
+    # cd <repository_directory>
+    ```
+
+2.  **Create External Volumes:**
+    Podman requires volumes to be created before they can be used as external volumes in `compose.yaml`.
+    ```bash
+    podman volume create n8n_data
+    podman volume create redis_data
+    podman volume create pgvector_data
+    podman volume create traefik_data
+    ```
+    *Note: While `n8n_data` is no longer used for N8N's primary database (which is now PostgreSQL), it might still be referenced in `compose.yaml` for other potential uses like custom node installations or if a user decides to revert persistence. It's good practice to create all declared external volumes.*
+
+3.  **Create External Network:**
+    Similarly, create the external network:
+    ```bash
+    podman network create n8n_network
+    ```
+
+4.  **Configure Environment Variables (`.env` file):**
+    Create a `.env` file in the root of the project directory. Copy the example variables from the "Configure Environment" section of this README and customize them.
+    **Crucially, ensure you set the `DOMAIN_NAME` variable to your publicly accessible domain or a domain that resolves to your Fedora machine's IP address for Traefik and Let's Encrypt to work correctly.**
+    You also need to add the `ACME_EMAIL` variable for Traefik's SSL certificate generation:
+    ```dotenv
+    # ... other variables from the README ...
+
+    # Traefik - Let's Encrypt Email
+    # IMPORTANT: Replace with your actual email address for SSL certificate generation
+    ACME_EMAIL=your-email@example.com
+    ```
+
+5.  **SELinux Considerations (Important for Volume Mounts):**
+    When using Podman on systems with SELinux enabled (like Fedora), you might need to append `:Z` or `:z` to your volume mounts in `compose.yaml` if you encounter permission issues. For example, the `SHARED_FOLDER` mount for the `n8n` service might need to be:
+    `- ${SHARED_FOLDER}/Files:/files:Z`
+    The `:Z` flag tells Podman to relabel the host directory to be shared among multiple containers, while `:z` relabels it for use only by that specific container. Review your `compose.yaml` and adjust local volume mounts if necessary. This typically applies to bind mounts from your host system, not named volumes managed by Podman.
+
+6.  **Run the Stack:**
+    Use `podman-compose` to bring up the services:
+    ```bash
+    podman-compose up -d
+    ```
+
+### Accessing N8N
+
+Once the stack is running, Traefik will automatically obtain an SSL certificate for your specified `DOMAIN_NAME`. You should be able to access N8N securely at:
+`https://<your_domain_name>`
+
+The Traefik dashboard (if enabled and configured for external access in your `compose.yaml`) can be accessed as per its configuration (e.g., `http://<your_domain_name>:8080` if routed, or via its exposed port if directly mapped and firewall allows). The current setup uses `--api.insecure=true` which exposes it on port `8080` of the Traefik container.
+
+### Stopping the Stack
+```bash
+podman-compose down
+```
 
 
 ## Scripts : backuping, updating

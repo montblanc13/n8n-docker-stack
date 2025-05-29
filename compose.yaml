@@ -21,6 +21,8 @@ volumes:
     external: true
   pgvector_data:
     external: true
+  traefik_data:
+    external: true
 
 #------------------------------------------------------------------------------
 #
@@ -36,15 +38,14 @@ services:
     restart: unless-stopped
     expose:
       - "5678"
-    ports:
-      - "5678:5678"
     environment:
       - N8N_HOST=${DOMAIN_NAME}
       - N8N_PORT=${PORT}
-      - N8N_PROTOCOL=http
+      - N8N_PROTOCOL=https
       - NODE_ENV=production
-      - WEBHOOK_URL=http://${DOMAIN_NAME}:${PORT}/
+      - WEBHOOK_URL=https://${DOMAIN_NAME}/
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - N8N_SECURITY_COOKIE_SECURE=true
       - N8N_ENABLE_COMMUNITY_NODES=true
       - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
       - N8N_RUNNERS_ENABLED=true
@@ -58,18 +59,46 @@ services:
       - EXECUTIONS_DATA_PRUNE=true
       - EXECUTIONS_DATA_MAX_AGE=48
       - EXECUTIONS_DATA_PRUNE_MAX_COUNT=5000
+      # N8N API Configuration
+      - N8N_API_SWAGGER_UI_ENABLED=true
+      # PostgreSQL Persistence Configuration
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=pgvector
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${PGVECTOR_DB}
+      - DB_POSTGRESDB_USER=${PGVECTOR_USER}
+      - DB_POSTGRESDB_PASSWORD=${PGVECTOR_PASSWORD}
+      - DB_POSTGRESDB_SSL=false
+      - DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED=false
     depends_on:
       - redis
       - pgvector
     volumes:
-      - n8n_data:/home/node/.n8n
       # Your can personnalize here local folder you need/want to share
       - ${SHARED_FOLDER}/Files:/files
       - ${SHARED_FOLDER}/Logs:/files/logs
       - ${SHARED_FOLDER}/Backups:/files/backups
     networks:
       - n8n_network
-      
+    labels:
+      - "traefik.enable=true"
+      # HTTPS Router
+      - "traefik.http.routers.n8n-secure.rule=Host(`${DOMAIN_NAME}`)"
+      - "traefik.http.routers.n8n-secure.entrypoints=websecure"
+      - "traefik.http.routers.n8n-secure.tls=true"
+      - "traefik.http.routers.n8n-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.n8n-secure.service=n8n-service"
+      # HTTP to HTTPS Redirect Router
+      - "traefik.http.routers.n8n-http.rule=Host(`${DOMAIN_NAME}`)"
+      - "traefik.http.routers.n8n-http.entrypoints=web"
+      - "traefik.http.routers.n8n-http.middlewares=redirect-to-https@docker"
+      - "traefik.http.routers.n8n-http.service=n8n-service" # Dummy service for HTTP router
+      # Define the service for N8N
+      - "traefik.http.services.n8n-service.loadbalancer.server.port=5678"
+      # Define the redirect middleware
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
   redis:
     image: redis/redis-stack:latest
     container_name: redis-service
@@ -104,6 +133,31 @@ services:
       - "5432:5432"
     networks:
       - n8n_network
-    
+
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik-proxy
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/data/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "traefik_data:/data"
+    networks:
+      - n8n_network
+    environment:
+      - ACME_EMAIL=email@example.com
 
 
