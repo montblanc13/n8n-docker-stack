@@ -21,8 +21,6 @@ volumes:
     external: true
   pgvector_data:
     external: true
-  traefik_data:
-    external: true
 
 #------------------------------------------------------------------------------
 #
@@ -80,24 +78,6 @@ services:
       - ${SHARED_FOLDER}/Backups:/files/backups
     networks:
       - n8n_network
-    labels:
-      - "traefik.enable=true"
-      # HTTPS Router
-      - "traefik.http.routers.n8n-secure.rule=Host(`${DOMAIN_NAME}`)"
-      - "traefik.http.routers.n8n-secure.entrypoints=websecure"
-      - "traefik.http.routers.n8n-secure.tls=true"
-      - "traefik.http.routers.n8n-secure.tls.certresolver=myresolver"
-      - "traefik.http.routers.n8n-secure.service=n8n-service"
-      # HTTP to HTTPS Redirect Router
-      - "traefik.http.routers.n8n-http.rule=Host(`${DOMAIN_NAME}`)"
-      - "traefik.http.routers.n8n-http.entrypoints=web"
-      - "traefik.http.routers.n8n-http.middlewares=redirect-to-https@docker"
-      - "traefik.http.routers.n8n-http.service=n8n-service" # Dummy service for HTTP router
-      # Define the service for N8N
-      - "traefik.http.services.n8n-service.loadbalancer.server.port=5678"
-      # Define the redirect middleware
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
 
   redis:
     image: redis/redis-stack:latest
@@ -133,31 +113,4 @@ services:
       - "5432:5432"
     networks:
       - n8n_network
-
-  traefik:
-    image: traefik:v3.0
-    container_name: traefik-proxy
-    restart: unless-stopped
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.myresolver.acme.storage=/data/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "traefik_data:/data"
-    networks:
-      - n8n_network
-    environment:
-      - ACME_EMAIL=email@example.com
-
 
