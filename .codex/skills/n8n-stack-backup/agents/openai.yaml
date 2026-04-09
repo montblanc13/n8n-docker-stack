@@ -1,0 +1,4 @@
+interface:
+  display_name: "N8N Stack Backup"
+  short_description: "Back up the n8n Docker stack data volumes"
+  default_prompt: "Use $n8n-stack-backup to back up the data volumes for this repository's n8n Docker stack."

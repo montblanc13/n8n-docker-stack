@@ -1,328 +1,130 @@
 # N8N Docker Stack
 
-I am sharing here a personal project to enable automation. 
-I think this could be useful for those like me who want to simplify their daily routine by creating automatic flows 🚀 to offload low-value tasks! 
-It works both at home 🏠 and at work 🏭 😉!
+Local Docker stack for running the n8n Community edition with Redis Stack and PostgreSQL + pgvector.
 
+## Services
 
-For questions, discord [@sibelius13](https://discordapp.com/users/sibelius13).
+- `n8n` on `http://localhost:5678`
+- `redis/redis-stack:latest` protected by password
+- `pgvector/pgvector:pg18-trixie` with dedicated databases, users, schemas, and healthchecks
 
+The stack creates and uses:
 
-## Context
+- network `n8n_bnetwork`
+- volumes `n8n_data`, `redis_data`, `pgvector_data`
+- bind mounts under `./data/n8n/` for files, logs, and backups
 
-A basic docker stack to build a N8N Server Node to automate many task on your computer.
+## n8n Configuration
 
-``` mermaid
-flowchart TD
-    A[N8N] -->|Cache, Memory| B(Redis-Stack)
-    A[N8N] -->|Persistance, Vector Store| C(PGVector)  
-```
+The compose file enables the following n8n settings:
 
-AT least compose a server with :
-- a N8N service : basic community N8N app for flow automation
-- a Redis Service  : for caching, building **AI Agent Memory** for example
-- a  / PGVector service : for data persistance on building **AI Vector Stores**.
+- latest n8n image from `docker.n8n.io/n8nio/n8n:latest`
+- execution retention pruned after 72 hours
+- file logging to `./data/n8n/logs/n8n.log`
+- community packages enabled
+- public API enabled
+- Swagger UI enabled
+- PostgreSQL storage through the `pgvector` service
 
+## Environment Variables
 
-This project proposes a docker compose file, you can personnalize, to build your own local docker stack. 
+Copy `.env.example` to `.env` and replace the default secrets before starting the stack.
 
-
-## Preparation
-
-
-### Volumes creation
-
-You need 3 volumes to persist all services configuration and Data
-
-``` shell
-# For N8N
-docker volume create n8n_data
-
-# For REDIS
-docker volume create redis_data
-
-# For PGVECTOR
-docker volume create pgvector_data
-```
-
-
-### Building an automation network
-
-You can now create a network for all you automation services, so then can interact esalily.
-Declaring an external network give you the ability for the futur, to connect other nodes to you N8N stack, depending of you needs. 
-
-
-``` shell
-docker network create --driver=bridge n8n_network
-```
-
-
-### Configure Environment
-
-In order to build your stack, you can see tha compose use Env Vars. 
-So define a `.env`file in your project and choose the service passwords you want to use. 
-
-Here is the vars you need to review/complete : 
-
-``` shell
-# The top level domain to serve from
-DOMAIN_NAME=localhost
-PORT=5678
-
-SHARED_FOLDER=<local path you want to expose to N8N>
-
-# Redis PASSWORDS
-REDIS_PASSWORD=<your pass>
-
-# PGVector
-PGVECTOR_DB=automation
-PGVECTOR_USER=n8n
-PGVECTOR_PASSWORD=<your pass>
-
-# Optional timezone to set which gets used by Cron-Node by default
+```dotenv
+# n8n runtime
+TZ=Europe/Paris
 GENERIC_TIMEZONE=Europe/Paris
+N8N_BIND_IP=127.0.0.1
+N8N_HOST_PORT=5678
+N8N_HOST=localhost
+N8N_PROTOCOL=http
+N8N_EDITOR_BASE_URL=http://localhost:5678
+N8N_WEBHOOK_URL=http://localhost:5678/
+
+# Host mounts used by n8n
+N8N_FILES_DIR=./data/n8n/files
+N8N_LOGS_DIR=./data/n8n/logs
+N8N_BACKUPS_DIR=./data/n8n/backups
+
+# Redis
+REDIS_PASSWORD=change-me-redis
+
+# PostgreSQL / pgvector
+PGVECTOR_ADMIN_USER=postgres
+PGVECTOR_ADMIN_PASSWORD=change-me-postgres-admin
+PGVECTOR_N8N_DB=n8n
+PGVECTOR_N8N_USER=n8n
+PGVECTOR_N8N_PASSWORD=change-me-n8n-db
+PGVECTOR_N8N_SCHEMA=n8n
+PGVECTOR_CLIENT_DB=n8n_client
+PGVECTOR_CLIENT_USER=n8n_client
+PGVECTOR_CLIENT_PASSWORD=change-me-n8n-client-db
+PGVECTOR_CLIENT_SCHEMA=n8n_client
+
+# UI user for browser-based healthchecks
+UI_USER_EMAIL=owner@example.com
+UI_USER_PASSWORD=change-me-ui-password
 ```
 
+Note: if a password contains `$`, escape it as `$$` in `.env` so Docker Compose reads it correctly.
 
-## Compose Review
+## PostgreSQL Bootstrap
 
+The file `postgres/initdb/01-init-n8n.sh` initializes PostgreSQL on first startup by:
 
-``` YAML
-name: "n8n-automation"
+- creating the dedicated n8n role and database
+- creating a second client role and database
+- enabling the `vector` extension in both databases
+- creating dedicated schemas
+- setting each role search path to its own schema plus `public`
 
-#------------------------------------------------------------------------------
-#
-# NETWORKS
-#
-# -----------------------------------------------------------------------------
-networks:
-  n8n_network:
-    external: true
+The init script only runs when the PostgreSQL volume is empty.
 
-#------------------------------------------------------------------------------
-#
-# VOLUMES
-#
-# -----------------------------------------------------------------------------
-volumes:
-  n8n_data:
-    external: true
-  redis_data:
-    external: true
-  pgvector_data:
-    external: true
+## Start The Stack
 
-
-#------------------------------------------------------------------------------
-#
-# SERVICES
-#
-# -----------------------------------------------------------------------------
-services:
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: n8n-engine
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_HOST=${DOMAIN_NAME}
-      - N8N_PORT=${PORT}
-      - N8N_PROTOCOL=http
-      - NODE_ENV=production
-      - WEBHOOK_URL=http://${DOMAIN_NAME}:${PORT}/
-      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
-      # Logging
-      - N8N_LOG_LEVEL=INFO
-      - N8N_LOG_FILE_LOCATION=/files/logs/n8n.logs
-      - N8N_LOG_OUTPUT=console,file
-      - N8N_LOG_FILE_SIZE_MAX=20
-      - N8N_LOG_FILE_COUNT_MAX=10
-    depends_on:
-      - redis
-      - pgvector
-    volumes:
-      - n8n_data:/home/node/.n8n
-      # Your can personnalize here local folder you need/want to share
-      - ${SHARED_FOLDER}/Files:/files
-      - ${SHARED_FOLDER}/Logs:/files/logs
-      - ${SHARED_FOLDER}/Backups:/files/backups
-    networks:
-      - n8n_network
-      
-  redis:
-    image: redis/redis-stack:latest
-    container_name: redis-service
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-      - "8001:8001"
-    environment:
-      - REDIS_ARGS=--requirepass ${REDIS_PASSWORD} --appendonly yes --save 900 1 --save 300 10 --save 60 10000 --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
-    networks:
-      - n8n_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
-
-  pgvector:
-    image: pgvector/pgvector:pg17
-    container_name: pgvector-service
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${PGVECTOR_DB}
-      POSTGRES_USER: ${PGVECTOR_USER}
-      POSTGRES_PASSWORD: ${PGVECTOR_PASSWORD}
-    volumes:
-      - pgvector_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - n8n_network
-    
-```
-
-After adjusting your compose, you can start your stack 
-
-``` shell
-docker compose up -d
-```
-
-## Deployment with Podman on Fedora Workstation
-
-This section outlines how to deploy the N8N stack using Podman on a Fedora Workstation environment. Podman provides a daemonless container engine compatible with Docker commands.
-
-### Prerequisites
-
-1.  **Install Podman:** Fedora Workstation usually comes with Podman pre-installed. If not, install it using:
-    ```bash
-    sudo dnf install podman
-    ```
-2.  **Install podman-compose:** This tool allows you to use `compose.yaml` files with Podman.
-    ```bash
-    sudo dnf install podman-compose
-    ```
-3.  **Firewall Configuration (if applicable):** Ensure that ports 80 (for HTTP) and 443 (for HTTPS) are open in your firewall (e.g., `firewalld`) to allow external access to Traefik:
-    ```bash
-    sudo firewall-cmd --add-service=http --permanent
-    sudo firewall-cmd --add-service=https --permanent
-    sudo firewall-cmd --reload
-    ```
-
-### Setup Steps
-
-1.  **Clone the Repository:**
-    ```bash
-    # git clone <repository_url>
-    # cd <repository_directory>
-    ```
-
-2.  **Create External Volumes:**
-    Podman requires volumes to be created before they can be used as external volumes in `compose.yaml`.
-    ```bash
-    podman volume create n8n_data
-    podman volume create redis_data
-    podman volume create pgvector_data
-    podman volume create traefik_data
-    ```
-    *Note: While `n8n_data` is no longer used for N8N's primary database (which is now PostgreSQL), it might still be referenced in `compose.yaml` for other potential uses like custom node installations or if a user decides to revert persistence. It's good practice to create all declared external volumes.*
-
-3.  **Create External Network:**
-    Similarly, create the external network:
-    ```bash
-    podman network create n8n_network
-    ```
-
-4.  **Configure Environment Variables (`.env` file):**
-    Create a `.env` file in the root of the project directory. Copy the example variables from the "Configure Environment" section of this README and customize them.
-    **Crucially, ensure you set the `DOMAIN_NAME` variable to your publicly accessible domain or a domain that resolves to your Fedora machine's IP address for Traefik and Let's Encrypt to work correctly.**
-    You also need to add the `ACME_EMAIL` variable for Traefik's SSL certificate generation:
-    ```dotenv
-    # ... other variables from the README ...
-
-    # Traefik - Let's Encrypt Email
-    # IMPORTANT: Replace with your actual email address for SSL certificate generation
-    ACME_EMAIL=your-email@example.com
-    ```
-
-5.  **SELinux Considerations (Important for Volume Mounts):**
-    When using Podman on systems with SELinux enabled (like Fedora), you might need to append `:Z` or `:z` to your volume mounts in `compose.yaml` if you encounter permission issues. For example, the `SHARED_FOLDER` mount for the `n8n` service might need to be:
-    `- ${SHARED_FOLDER}/Files:/files:Z`
-    The `:Z` flag tells Podman to relabel the host directory to be shared among multiple containers, while `:z` relabels it for use only by that specific container. Review your `compose.yaml` and adjust local volume mounts if necessary. This typically applies to bind mounts from your host system, not named volumes managed by Podman.
-
-6.  **Run the Stack:**
-    Use `podman-compose` to bring up the services:
-    ```bash
-    podman-compose up -d
-    ```
-
-### Accessing N8N
-
-Once the stack is running, Traefik will automatically obtain an SSL certificate for your specified `DOMAIN_NAME`. You should be able to access N8N securely at:
-`https://<your_domain_name>`
-
-The Traefik dashboard (if enabled and configured for external access in your `compose.yaml`) can be accessed as per its configuration (e.g., `http://<your_domain_name>:8080` if routed, or via its exposed port if directly mapped and firewall allows). The current setup uses `--api.insecure=true` which exposes it on port `8080` of the Traefik container.
-
-### Stopping the Stack
 ```bash
-podman-compose down
+mkdir -p data/n8n/files data/n8n/logs data/n8n/backups
+docker compose config
+docker compose pull
+docker compose up -d
+docker compose ps
 ```
 
+Open n8n at `http://localhost:5678`.
 
-## Scripts : backuping, updating
+## Stop Or Remove The Stack
 
-Before using all shell scripts described here, you have to update the following `n8n-env.sh` script :
+Stop containers without deleting data:
 
-``` shell
-#!/usr/bin/zsh
-
-# Dossier choisi pour déposer les backups (local machine)
-BACKUP_DIR=~/Docker/Backups
-
-# Endpoint de HealtCheck
-# Adaptez ici l'URL en fonction de vitre WebHook local @see [Notif_Backup](./DOCKER___Stack_Health_Check.json)
-# IIL faut pointer sur le webhook de votre flow (Activé -> URL de Production)
-N8N_HEALTHCHECK_URL=http://localhost:5678/webhook/ff4fa298-3c06-4540-b426-9bedac2426ca
-
-
-# Timestamp d'execution
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-CALLPARAM=$(date --iso-8601=seconds)
+```bash
+docker compose stop
 ```
 
-So adapt the **BACKUP_DIR** for your computer and change the **HEALTHCHECK_URL**. This is a _tutorial-level_ n8n flow to check that all N8N dependencies are functioning well.
+Remove containers, volumes, and the dedicated network:
 
+```bash
+docker compose down --remove-orphans
+docker volume rm n8n_data redis_data pgvector_data
+docker network rm n8n_bnetwork
+```
 
-### Backuping
+## Backup And Restore
 
-I wrote a simple shell script to back up the volumes of different services. 
-This helps prevent data loss from accidental mishandling.
+Project scripts are available for volume backup and restore:
 
-For this backup, I mount the volumes in an ephemeral container for the duration of archiving its contents. 
-This requires stopping the stack to ensure data consistency.
+- `./backup.sh` stops the stack, archives the named volumes, restarts the stack, then triggers the webhook healthcheck
+- `./restore.sh [timestamp|latest]` restores the latest backup set or a specific timestamped backup, then restarts the stack and triggers the healthcheck
+- `./check-stack.sh` sends a POST request to the webhook configured in `n8n-env.sh`
 
-See [backup.sh](./backup.sh)
+Adjust `BACKUP_DIR` and `N8N_HEALTHCHECK_URL` in `n8n-env.sh` to match your environment.
 
+## Healthchecks
 
+- Redis healthcheck uses `redis-cli --pass "$REDIS_PASSWORD" ping`
+- PostgreSQL healthcheck uses `pg_isready -U "$POSTGRES_USER" -d postgres`
+- UI healthchecks can authenticate with `UI_USER_EMAIL` and `UI_USER_PASSWORD` from `.env`
 
-### Updating
+## Repository Notes
 
-N8N frequently releases fixes and updates. 
-So, I wrote a shell script to update it easily. 
-The first step in this update is to perform a preliminary backup.
-
-
-See [update-n8n.sh](./update-n8n.sh)
-
-
-### Restoring
-
-I Wrote a script for restoring, but it need more work to be easy to use.
-> Additional work to be done! 😉
-
-See [restore.sh](./restore.sh)
+- Runtime data under `data/` is intentionally ignored by Git
+- Playwright debug artifacts under `.playwright-mcp/` are intentionally ignored by Git

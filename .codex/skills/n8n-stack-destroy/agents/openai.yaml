@@ -1,0 +1,4 @@
+interface:
+  display_name: "N8N Stack Destroy"
+  short_description: "Remove the n8n Docker stack and local resources"
+  default_prompt: "Use $n8n-stack-destroy to stop and fully remove the n8n Docker stack for this repository."

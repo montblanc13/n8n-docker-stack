@@ -1,4 +1,5 @@
 #!/usr/bin/zsh
+set -euo pipefail
 
 source n8n-env.sh
 
@@ -21,7 +22,7 @@ echo "Backuping PGVECTOR..."
 docker run --rm -v pgvector_data:/volume -v $BACKUP_DIR:/backup alpine sh -c "tar czf /backup/$TIMESTAMP-pgvector-data.tar.gz -C /volume ."
 
 echo "Backuping REDIS..."
-docker run --rm -v redis_data:/volume -v $BACKUP_DIR:/backup alpine sh -c "tar czf /backup/$TIMESTAMP-redis-data_.tar.gz -C /volume ."
+docker run --rm -v redis_data:/volume -v $BACKUP_DIR:/backup alpine sh -c "tar czf /backup/$TIMESTAMP-redis-data.tar.gz -C /volume ."
 
 echo "Backuping N8N..."
 docker run --rm -v n8n_data:/volume -v $BACKUP_DIR:/backup alpine sh -c "tar czf /backup/$TIMESTAMP-n8n-data.tar.gz -C /volume ."

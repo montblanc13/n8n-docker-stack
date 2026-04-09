@@ -1,0 +1,4 @@
+interface:
+  display_name: "N8N Stack Create"
+  short_description: "Create and bootstrap the n8n Docker stack"
+  default_prompt: "Use $n8n-stack-create to create and bootstrap the n8n Docker stack for this repository."

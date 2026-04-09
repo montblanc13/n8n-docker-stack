@@ -1,2 +1,4 @@
 .env
 *sample.*
+.playwright-mcp/
+data/

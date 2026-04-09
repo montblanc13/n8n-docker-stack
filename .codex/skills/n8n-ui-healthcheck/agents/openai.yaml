@@ -1,0 +1,4 @@
+interface:
+  display_name: "N8N UI Healthcheck"
+  short_description: "Check n8n UI login and workflow creation"
+  default_prompt: "Use $n8n-ui-healthcheck to verify that the local n8n UI loads, logs in with UI_USER_EMAIL and UI_USER_PASSWORD from .env, and opens a workflow editor."
