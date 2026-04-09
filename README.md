@@ -1,34 +1,67 @@
 # N8N Docker Stack
 
-Local Docker stack for running the n8n Community edition with Redis Stack and PostgreSQL + pgvector.
+```mermaid
+flowchart LR
+  subgraph NET["Réseau Docker partagé : n8n_bnetwork"]
+    N8N["n8n\ncontainer: n8n-engine"]
+    REDIS["Redis Stack\ncontainer: redis-service"]
+    PG["PostgreSQL + pgvector\ncontainer: pgvector-service"]
+  end
 
-## Services
+  N8N -->|cache / queue| REDIS
+  N8N -->|base PostgreSQL| PG
 
-- `n8n` on `http://localhost:5678`
-- `redis/redis-stack:latest` protected by password
-- `pgvector/pgvector:pg18-trixie` with dedicated databases, users, schemas, and healthchecks
+  VN8N[("volume n8n_data")]
+  VREDIS[("volume redis_data")]
+  VPG[("volume pgvector_data")]
+  BIND[("bind mounts ./data/n8n/*")]
 
-The stack creates and uses:
+  N8N --- VN8N
+  N8N --- BIND
+  REDIS --- VREDIS
+  PG --- VPG
+```
 
-- network `n8n_bnetwork`
-- volumes `n8n_data`, `redis_data`, `pgvector_data`
-- bind mounts under `./data/n8n/` for files, logs, and backups
+Stack Docker locale pour exécuter n8n Community avec Redis Stack et PostgreSQL + pgvector sur le même réseau Docker.
 
-## n8n Configuration
+## Vue d'ensemble
 
-The compose file enables the following n8n settings:
+La stack crée et exploite les éléments suivants :
 
-- latest n8n image from `docker.n8n.io/n8nio/n8n:latest`
-- execution retention pruned after 72 hours
-- file logging to `./data/n8n/logs/n8n.log`
-- community packages enabled
-- public API enabled
-- Swagger UI enabled
-- PostgreSQL storage through the `pgvector` service
+- service `n8n` exposé sur `http://localhost:5678`
+- service `redis/redis-stack:latest` protégé par mot de passe
+- service `pgvector/pgvector:pg18-trixie` avec rôles, bases et schémas dédiés
+- réseau Docker `n8n_bnetwork`
+- volumes nommés `n8n_data`, `redis_data`, `pgvector_data`
+- bind mounts sous `./data/n8n/` pour les fichiers, logs et sauvegardes
 
-## Environment Variables
+## Skills locales
 
-Copy `.env.example` to `.env` and replace the default secrets before starting the stack.
+Le dépôt embarque des skills Codex dans `.codex/skills/` pour automatiser les opérations courantes sur la stack :
+
+- `n8n-stack-create` : crée ou recrée la stack, valide `compose.yaml`, récupère les images et vérifie que les services sont démarrés.
+- `n8n-stack-destroy` : supprime complètement la stack locale, y compris les conteneurs, volumes nommés et le réseau Docker.
+- `n8n-stack-backup` : arrête temporairement les services, archive les volumes `n8n_data`, `redis_data` et `pgvector_data`, puis redémarre la stack.
+- `n8n-stack-restore` : restaure un jeu de sauvegarde existant dans les volumes Docker puis relance la stack.
+- `n8n-ui-healthcheck` : lance un contrôle de santé bout en bout dans l'interface n8n avec Playwright, login inclus.
+
+Ces skills sont conçues pour être invoquées depuis Codex sur ce dépôt afin d'éviter de répéter les mêmes procédures manuelles.
+
+## Configuration n8n
+
+Le service `n8n` est configuré pour :
+
+- utiliser l'image `docker.n8n.io/n8nio/n8n:latest`
+- supprimer les exécutions au-delà de 72 heures
+- écrire les logs dans `./data/n8n/logs/n8n.log`
+- autoriser les Community Nodes
+- activer l'API publique n8n
+- activer l'interface Swagger
+- stocker ses données applicatives dans PostgreSQL via `pgvector`
+
+## Variables d'environnement
+
+Copier `.env.example` vers `.env`, puis remplacer les secrets par vos valeurs avant le premier démarrage.
 
 ```dotenv
 # n8n runtime
@@ -66,21 +99,19 @@ UI_USER_EMAIL=owner@example.com
 UI_USER_PASSWORD=change-me-ui-password
 ```
 
-Note: if a password contains `$`, escape it as `$$` in `.env` so Docker Compose reads it correctly.
+Si un mot de passe contient `$`, l'écrire comme `$$` dans `.env` pour que Docker Compose l'interprète correctement.
 
-## PostgreSQL Bootstrap
+## Initialisation PostgreSQL
 
-The file `postgres/initdb/01-init-n8n.sh` initializes PostgreSQL on first startup by:
+Le fichier `postgres/initdb/01-init-n8n.sh` s'exécute au premier démarrage d'un volume PostgreSQL vide pour :
 
-- creating the dedicated n8n role and database
-- creating a second client role and database
-- enabling the `vector` extension in both databases
-- creating dedicated schemas
-- setting each role search path to its own schema plus `public`
+- créer le rôle et la base dédiés à n8n
+- créer un second rôle et une seconde base client
+- activer l'extension `vector` dans les deux bases
+- créer les schémas dédiés
+- définir le `search_path` de chaque rôle sur son schéma et `public`
 
-The init script only runs when the PostgreSQL volume is empty.
-
-## Start The Stack
+## Démarrage de la stack
 
 ```bash
 mkdir -p data/n8n/files data/n8n/logs data/n8n/backups
@@ -90,17 +121,17 @@ docker compose up -d
 docker compose ps
 ```
 
-Open n8n at `http://localhost:5678`.
+Accéder ensuite à n8n via `http://localhost:5678`.
 
-## Stop Or Remove The Stack
+## Arrêt et suppression
 
-Stop containers without deleting data:
+Pour arrêter les conteneurs sans supprimer les données :
 
 ```bash
 docker compose stop
 ```
 
-Remove containers, volumes, and the dedicated network:
+Pour supprimer la stack complète :
 
 ```bash
 docker compose down --remove-orphans
@@ -108,23 +139,23 @@ docker volume rm n8n_data redis_data pgvector_data
 docker network rm n8n_bnetwork
 ```
 
-## Backup And Restore
+## Sauvegarde et restauration
 
-Project scripts are available for volume backup and restore:
+Les scripts projet disponibles sont :
 
-- `./backup.sh` stops the stack, archives the named volumes, restarts the stack, then triggers the webhook healthcheck
-- `./restore.sh [timestamp|latest]` restores the latest backup set or a specific timestamped backup, then restarts the stack and triggers the healthcheck
-- `./check-stack.sh` sends a POST request to the webhook configured in `n8n-env.sh`
+- `./backup.sh` : arrête la stack, archive les volumes, redémarre les services puis déclenche le healthcheck webhook.
+- `./restore.sh [timestamp|latest]` : restaure la dernière sauvegarde ou un lot horodaté précis, puis redémarre la stack.
+- `./check-stack.sh` : envoie une requête POST vers le webhook déclaré dans `n8n-env.sh`.
 
-Adjust `BACKUP_DIR` and `N8N_HEALTHCHECK_URL` in `n8n-env.sh` to match your environment.
+Ajuster `BACKUP_DIR` et `N8N_HEALTHCHECK_URL` dans `n8n-env.sh` selon l'environnement local.
 
 ## Healthchecks
 
-- Redis healthcheck uses `redis-cli --pass "$REDIS_PASSWORD" ping`
-- PostgreSQL healthcheck uses `pg_isready -U "$POSTGRES_USER" -d postgres`
-- UI healthchecks can authenticate with `UI_USER_EMAIL` and `UI_USER_PASSWORD` from `.env`
+- Redis : `redis-cli --pass "$REDIS_PASSWORD" ping`
+- PostgreSQL : `pg_isready -U "$POSTGRES_USER" -d postgres`
+- UI n8n : utilisation de `UI_USER_EMAIL` et `UI_USER_PASSWORD` pour les tests Playwright
 
-## Repository Notes
+## Notes dépôt
 
-- Runtime data under `data/` is intentionally ignored by Git
-- Playwright debug artifacts under `.playwright-mcp/` are intentionally ignored by Git
+- les données runtime sous `data/` sont ignorées par Git
+- les artefacts Playwright sous `.playwright-mcp/` sont ignorés par Git
