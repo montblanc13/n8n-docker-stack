@@ -36,7 +36,6 @@ services:
       WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
       GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-Europe/Paris}
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
-      N8N_RUNNERS_ENABLED: "true"
       N8N_LOG_LEVEL: info
       N8N_LOG_OUTPUT: console,file
       N8N_LOG_FILE_LOCATION: /data/logs/n8n.log

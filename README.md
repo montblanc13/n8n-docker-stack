@@ -43,6 +43,7 @@ Le dépôt embarque des skills Codex dans `.codex/skills/` pour automatiser les 
 - `n8n-stack-destroy` : supprime complètement la stack locale, y compris les conteneurs, volumes nommés et le réseau Docker.
 - `n8n-stack-backup` : arrête temporairement les services, archive les volumes `n8n_data`, `redis_data` et `pgvector_data`, puis redémarre la stack.
 - `n8n-stack-restore` : restaure un jeu de sauvegarde existant dans les volumes Docker puis relance la stack.
+- `n8n-runtime-control` : arrête ou redémarre le service `n8n`, puis lit les logs récents pour confirmer que le container est sain.
 - `n8n-ui-healthcheck` : lance un contrôle de santé bout en bout dans l'interface n8n avec Playwright, login inclus.
 
 Ces skills sont conçues pour être invoquées depuis Codex sur ce dépôt afin d'éviter de répéter les mêmes procédures manuelles.

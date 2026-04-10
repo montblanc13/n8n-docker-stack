@@ -1,0 +1,4 @@
+interface:
+  display_name: "N8N Runtime Control"
+  short_description: "Stop, restart, and inspect n8n container logs"
+  default_prompt: "Use $n8n-runtime-control to stop or restart the n8n service and inspect recent logs to confirm the container is healthy."
