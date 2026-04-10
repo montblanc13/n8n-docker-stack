@@ -112,6 +112,8 @@ services:
       PGVECTOR_CLIENT_SCHEMA: ${PGVECTOR_CLIENT_SCHEMA:-n8n_client}
     expose:
       - "5432"
+    ports:
+      - "${PGVECTOR_BIND_IP:-127.0.0.1}:${PGVECTOR_HOST_PORT:-5432}:5432"
     volumes:
       - pgvector_data:/var/lib/postgresql
       - ./postgres/initdb/01-init-n8n.sh:/docker-entrypoint-initdb.d/01-init-n8n.sh:ro

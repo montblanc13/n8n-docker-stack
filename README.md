@@ -31,6 +31,7 @@ La stack crée et exploite les éléments suivants :
 - service `n8n` exposé sur `http://localhost:5678`
 - service `redis/redis-stack:latest` protégé par mot de passe
 - service `pgvector/pgvector:pg18-trixie` avec rôles, bases et schémas dédiés
+- PostgreSQL publié localement sur `127.0.0.1:5432` pour accès depuis DBeaver
 - réseau Docker `n8n_bnetwork`
 - volumes nommés `n8n_data`, `redis_data`, `pgvector_data`
 - bind mounts sous `./data/n8n/` pour les fichiers, logs et sauvegardes
@@ -84,6 +85,8 @@ N8N_BACKUPS_DIR=./data/n8n/backups
 REDIS_PASSWORD=change-me-redis
 
 # PostgreSQL / pgvector
+PGVECTOR_BIND_IP=127.0.0.1
+PGVECTOR_HOST_PORT=5432
 PGVECTOR_ADMIN_USER=postgres
 PGVECTOR_ADMIN_PASSWORD=change-me-postgres-admin
 PGVECTOR_N8N_DB=n8n
@@ -155,6 +158,16 @@ Ajuster `BACKUP_DIR` et `N8N_HEALTHCHECK_URL` dans `n8n-env.sh` selon l'environn
 - Redis : `redis-cli --pass "$REDIS_PASSWORD" ping`
 - PostgreSQL : `pg_isready -U "$POSTGRES_USER" -d postgres`
 - UI n8n : utilisation de `UI_USER_EMAIL` et `UI_USER_PASSWORD` pour les tests Playwright
+
+## Acces DBeaver
+
+Utiliser DBeaver avec les parametres suivants :
+
+- Host : `127.0.0.1`
+- Port : `5432` ou la valeur de `PGVECTOR_HOST_PORT`
+- Database : `n8n` ou la valeur de `PGVECTOR_N8N_DB`
+- Username : `n8n` ou la valeur de `PGVECTOR_N8N_USER`
+- Password : la valeur de `PGVECTOR_N8N_PASSWORD`
 
 ## Notes dépôt
 
